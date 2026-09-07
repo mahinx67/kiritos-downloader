@@ -88,25 +88,17 @@ export function getAdminAnnouncements(): AdminAnnouncement[] {
   }
 }
 
-export function saveAdminAnnouncements(items: AdminAnnouncement[]): void {
+export async function saveAdminAnnouncements(items: AdminAnnouncement[]): Promise<void> {
+  await setDoc(doc(db, "site_config", "announcements"), { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_ANNOUNCEMENTS, JSON.stringify(items));
     triggerSync();
   } catch (err) {
-    console.warn("Failed to save announcements locally", err);
-  }
-
-  // Attempt Firestore sync
-  try {
-    setDoc(doc(db, "site_config", "announcements"), { items }, { merge: true }).catch((err) => {
-      console.warn("Firestore announcements sync notice:", err.message);
-    });
-  } catch (err) {
-    console.warn("Firestore save skipped:", err);
+    console.warn("Firestore saved, but local announcement cache was unavailable:", err);
   }
 }
 
-export function addAnnouncement(text: string, type: AdminAnnouncement["type"], isActive: boolean = true): AdminAnnouncement {
+export async function addAnnouncement(text: string, type: AdminAnnouncement["type"], isActive: boolean = true): Promise<AdminAnnouncement> {
   const current = getAdminAnnouncements();
   const newItem: AdminAnnouncement = {
     id: "ann-" + Date.now(),
@@ -115,19 +107,19 @@ export function addAnnouncement(text: string, type: AdminAnnouncement["type"], i
     isActive,
     createdAt: new Date().toLocaleDateString()
   };
-  saveAdminAnnouncements([newItem, ...current]);
+  await saveAdminAnnouncements([newItem, ...current]);
   return newItem;
 }
 
-export function toggleAnnouncement(id: string): void {
+export async function toggleAnnouncement(id: string): Promise<void> {
   const current = getAdminAnnouncements();
   const updated = current.map(item => item.id === id ? { ...item, isActive: !item.isActive } : item);
-  saveAdminAnnouncements(updated);
+  await saveAdminAnnouncements(updated);
 }
 
-export function deleteAnnouncement(id: string): void {
+export async function deleteAnnouncement(id: string): Promise<void> {
   const current = getAdminAnnouncements();
-  saveAdminAnnouncements(current.filter(item => item.id !== id));
+  await saveAdminAnnouncements(current.filter(item => item.id !== id));
 }
 
 // 2. Custom Platforms
