@@ -5,7 +5,7 @@
  * The historical Cloud Run URL remains as a backwards-compatible fallback for
  * the known static-host deployments.
  */
-const DEFAULT_API_BASE = "https://ais-pre-rmdmtaf4hj4vjrzlo2d2zs-920840423751.asia-east1.run.app";
+const DEFAULT_API_BASE = "https://kiritos-downloader.onrender.com";
 
 export const getApiBaseUrl = (): string => {
   const viteEnv = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env;
