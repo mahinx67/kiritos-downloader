@@ -32,7 +32,7 @@ import {
   MessageSquare,
   Download
 } from "lucide-react";
-import { RecentDownloadItem, AdminAnnouncement, AdminCustomPlatform } from "../types";
+import { RecentDownloadItem, AdminAnnouncement } from "../types";
 import { useAdminStore } from "../utils/adminStore";
 import { getApiUrl } from "../utils/api";
 import { auth } from "../firebase";
@@ -59,16 +59,22 @@ export function AdminPanelModal({
   
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"overview" | "add-manager" | "tester" | "platforms" | "logs">("add-manager");
-  const [addSection, setAddSection] = useState<"notices" | "config">("notices");
+  const [addSection, setAddSection] = useState<"notices" | "config" | "content">("notices");
 
   // Admin Store
   const {
     announcements,
+    platforms: customPlatforms,
+    faqs: customFaqs,
     config,
     addAnnouncement,
     toggleAnnouncement,
     deleteAnnouncement,
-    saveAdminConfig
+    saveAdminConfig,
+    addCustomPlatform,
+    deleteCustomPlatform,
+    addCustomFaq,
+    deleteCustomFaq
   } = useAdminStore();
 
   // New Notice Form State
@@ -83,6 +89,13 @@ export function AdminPanelModal({
   const [audioBitrate, setAudioBitrate] = useState(config.defaultAudioBitrate);
   const [speedBoost, setSpeedBoost] = useState(config.serverSpeedBoost);
   const [configSavedSuccess, setConfigSavedSuccess] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [platformName, setPlatformName] = useState("");
+  const [platformDomain, setPlatformDomain] = useState("");
+  const [platformExampleUrl, setPlatformExampleUrl] = useState("");
+  const [faqQuestion, setFaqQuestion] = useState("");
+  const [faqAnswer, setFaqAnswer] = useState("");
+  const [contentError, setContentError] = useState<string | null>(null);
 
   // Diagnostics state
   const [testUrl, setTestUrl] = useState("");
@@ -190,15 +203,74 @@ export function AdminPanelModal({
 
   // Save Settings Handler
   const handleSaveSettings = (e: FormEvent) => {
+    void saveSettings(e);
+  };
+
+  const saveSettings = async (e: FormEvent) => {
     e.preventDefault();
-    saveAdminConfig({
-      maintenanceMode: maintMode,
-      maintenanceMessage: maintMsg,
-      defaultAudioBitrate: audioBitrate,
-      serverSpeedBoost: speedBoost
-    });
-    setConfigSavedSuccess(true);
-    setTimeout(() => setConfigSavedSuccess(false), 2500);
+    setConfigError(null);
+    try {
+      await saveAdminConfig({
+        maintenanceMode: maintMode,
+        maintenanceMessage: maintMsg,
+        defaultAudioBitrate: audioBitrate,
+        serverSpeedBoost: speedBoost
+      });
+      setConfigSavedSuccess(true);
+      setTimeout(() => setConfigSavedSuccess(false), 2500);
+    } catch (err) {
+      console.error("[CONFIG FIRESTORE SAVE ERROR]", err);
+      setConfigError("Settings were not saved to Firebase. Check Firestore rules and admin login.");
+    }
+  };
+
+  const handleAddPlatform = async (e: FormEvent) => {
+    e.preventDefault();
+    setContentError(null);
+    if (!platformName.trim() || !platformDomain.trim()) return;
+    try {
+      await addCustomPlatform(platformName, platformDomain, "video", "HD", platformExampleUrl);
+      setPlatformName("");
+      setPlatformDomain("");
+      setPlatformExampleUrl("");
+    } catch (err) {
+      console.error("[PLATFORM FIRESTORE SAVE ERROR]", err);
+      setContentError("Platform was not saved to Firebase. Check Firestore rules and admin login.");
+    }
+  };
+
+  const handleAddFaq = async (e: FormEvent) => {
+    e.preventDefault();
+    setContentError(null);
+    if (!faqQuestion.trim() || !faqAnswer.trim()) return;
+    try {
+      await addCustomFaq(faqQuestion, faqAnswer);
+      setFaqQuestion("");
+      setFaqAnswer("");
+    } catch (err) {
+      console.error("[FAQ FIRESTORE SAVE ERROR]", err);
+      setContentError("FAQ was not saved to Firebase. Check Firestore rules and admin login.");
+    }
+  };
+
+  const handleToggleAnnouncement = async (id: string) => {
+    setNoticeError(null);
+    try {
+      await toggleAnnouncement(id);
+    } catch (err) {
+      console.error("[ANNOUNCEMENT TOGGLE ERROR]", err);
+      setNoticeError("Announcement status was not saved to Firebase.");
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    setNoticeError(null);
+    try {
+      await deleteAnnouncement(id);
+    } catch (err) {
+      console.error("[ANNOUNCEMENT DELETE ERROR]", err);
+      setNoticeError("Announcement deletion was not saved to Firebase.");
+    }
   };
 
   const runApiTest = async () => {
@@ -438,6 +510,18 @@ export function AdminPanelModal({
                       <Settings className="w-3.5 h-3.5 text-emerald-700" />
                       <span>Site Settings</span>
                     </button>
+
+                    <button
+                      onClick={() => setAddSection("content")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        addSection === "content"
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      <Database className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Custom Content</span>
+                    </button>
                   </div>
 
                   {/* SUB-SECTION 1: NOTICES / ANNOUNCEMENTS */}
@@ -541,7 +625,7 @@ export function AdminPanelModal({
 
                               <div className="flex items-center gap-2 shrink-0">
                                 <button
-                                  onClick={() => toggleAnnouncement(ann.id)}
+                                  onClick={() => void handleToggleAnnouncement(ann.id)}
                                   className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                     ann.isActive
                                       ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-900"
@@ -551,7 +635,7 @@ export function AdminPanelModal({
                                   {ann.isActive ? "Active" : "Disabled"}
                                 </button>
                                 <button
-                                  onClick={() => deleteAnnouncement(ann.id)}
+                                  onClick={() => void handleDeleteAnnouncement(ann.id)}
                                   className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
                                   title="Delete"
                                 >
@@ -576,6 +660,11 @@ export function AdminPanelModal({
                         {configSavedSuccess && (
                           <span className="text-xs text-emerald-700 font-bold flex items-center gap-1 animate-scale-in">
                             <CheckCircle2 className="w-3.5 h-3.5" /> Settings Saved!
+                          </span>
+                        )}
+                        {configError && (
+                          <span className="text-xs text-red-700 font-bold flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" /> {configError}
                           </span>
                         )}
                       </div>
@@ -658,6 +747,52 @@ export function AdminPanelModal({
                         </button>
                       </div>
                     </form>
+                  )}
+
+                  {/* SUB-SECTION 3: FIRESTORE-BACKED CUSTOM CONTENT */}
+                  {addSection === "content" && (
+                    <div className="space-y-4">
+                      {contentError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" /> {contentError}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleAddPlatform} className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-extrabold text-emerald-950 uppercase tracking-wider">Add Custom Platform</h5>
+                          <span className="text-[10px] text-slate-500">{customPlatforms.length} saved</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input value={platformName} onChange={(e) => setPlatformName(e.target.value)} placeholder="Platform name" className="px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs outline-hidden" />
+                          <input value={platformDomain} onChange={(e) => setPlatformDomain(e.target.value)} placeholder="Domain, e.g. example.com" className="px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs outline-hidden" />
+                        </div>
+                        <input value={platformExampleUrl} onChange={(e) => setPlatformExampleUrl(e.target.value)} placeholder="Optional sample URL" className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs outline-hidden" />
+                        <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer">Save Platform to Firebase</button>
+                        {customPlatforms.map((platform) => (
+                          <div key={platform.id} className="flex items-center justify-between gap-2 p-2 bg-white border border-emerald-100 rounded-lg text-xs">
+                            <span className="font-semibold truncate">{platform.name} <span className="text-slate-400">({platform.domain})</span></span>
+                            <button type="button" onClick={() => void deleteCustomPlatform(platform.id).catch(() => setContentError("Platform deletion failed in Firebase."))} className="text-red-600 font-bold cursor-pointer">Delete</button>
+                          </div>
+                        ))}
+                      </form>
+
+                      <form onSubmit={handleAddFaq} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Add Custom FAQ</h5>
+                          <span className="text-[10px] text-slate-500">{customFaqs.length} saved</span>
+                        </div>
+                        <input value={faqQuestion} onChange={(e) => setFaqQuestion(e.target.value)} placeholder="Question" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-hidden" />
+                        <textarea value={faqAnswer} onChange={(e) => setFaqAnswer(e.target.value)} placeholder="Answer" rows={3} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-hidden resize-none" />
+                        <button type="submit" className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer">Save FAQ to Firebase</button>
+                        {customFaqs.map((faq) => (
+                          <div key={faq.id} className="flex items-start justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg text-xs">
+                            <span className="font-semibold">{faq.question}</span>
+                            <button type="button" onClick={() => void deleteCustomFaq(faq.id).catch(() => setContentError("FAQ deletion failed in Firebase."))} className="text-red-600 font-bold cursor-pointer shrink-0">Delete</button>
+                          </div>
+                        ))}
+                      </form>
+                    </div>
                   )}
                 </div>
               )}
@@ -822,7 +957,7 @@ export function AdminPanelModal({
                     <button
                       onClick={() => {
                         setActiveTab("add-manager");
-                        setAddSection("platforms");
+                        setAddSection("content");
                       }}
                       className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow-xs"
                     >
