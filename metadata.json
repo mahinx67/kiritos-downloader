@@ -1,0 +1,6 @@
+{
+  "name": "KIRITOS",
+  "description": "Universal fast video, audio, and photo downloader for YouTube, TikTok, Instagram, Facebook, and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

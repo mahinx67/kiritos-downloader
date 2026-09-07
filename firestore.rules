@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Admin verification helper function
+    // Replace with your admin email or custom admin claim
+    function isAdmin() {
+      return request.auth != null && 
+             (request.auth.token.email == 'mhamodulhasnat.mhmahin@gmail.com' ||
+              request.auth.token.email == 'mahin@mail.com' ||
+              request.auth.token.admin == true);
+    }
+    
+    // Site config and maintenance mode
+    // Public can read, only admin can write
+    match /site_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Announcements & ticker notifications
+    // Public can read, only admin can write
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Custom supported platforms
+    // Public can read, only admin can write
+    match /custom_platforms/{platformId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Frequently Asked Questions (FAQs)
+    // Public can read, only admin can write
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // User personal download history (if signed in)
+    match /users/{userId}/history/{historyId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
