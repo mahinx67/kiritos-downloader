@@ -137,31 +137,23 @@ export function getAdminPlatforms(): AdminCustomPlatform[] {
   }
 }
 
-export function saveAdminPlatforms(items: AdminCustomPlatform[]): void {
+export async function saveAdminPlatforms(items: AdminCustomPlatform[]): Promise<void> {
+  await setDoc(doc(db, "site_config", "platforms"), { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_PLATFORMS, JSON.stringify(items));
     triggerSync();
   } catch (err) {
-    console.warn("Failed to save platforms locally", err);
-  }
-
-  // Attempt Firestore sync
-  try {
-    setDoc(doc(db, "site_config", "platforms"), { items }, { merge: true }).catch((err) => {
-      console.warn("Firestore platforms sync notice:", err.message);
-    });
-  } catch (err) {
-    console.warn("Firestore save skipped:", err);
+    console.warn("Firestore saved, but local platform cache was unavailable:", err);
   }
 }
 
-export function addCustomPlatform(
+export async function addCustomPlatform(
   name: string, 
   domain: string, 
   category: AdminCustomPlatform["category"] = "video", 
   badge: string = "HD", 
   exampleUrl: string = ""
-): AdminCustomPlatform {
+): Promise<AdminCustomPlatform> {
   const current = getAdminPlatforms();
   const newItem: AdminCustomPlatform = {
     id: "plat-" + Date.now(),
@@ -172,18 +164,18 @@ export function addCustomPlatform(
     exampleUrl: exampleUrl.trim() || `https://${domain.trim().toLowerCase()}`,
     isActive: true
   };
-  saveAdminPlatforms([...current, newItem]);
+  await saveAdminPlatforms([...current, newItem]);
   return newItem;
 }
 
-export function toggleCustomPlatform(id: string): void {
+export async function toggleCustomPlatform(id: string): Promise<void> {
   const current = getAdminPlatforms();
-  saveAdminPlatforms(current.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
+  await saveAdminPlatforms(current.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p));
 }
 
-export function deleteCustomPlatform(id: string): void {
+export async function deleteCustomPlatform(id: string): Promise<void> {
   const current = getAdminPlatforms();
-  saveAdminPlatforms(current.filter(p => p.id !== id));
+  await saveAdminPlatforms(current.filter(p => p.id !== id));
 }
 
 // 3. Custom FAQs
@@ -201,25 +193,17 @@ export function getAdminFaqs(): AdminCustomFaq[] {
   }
 }
 
-export function saveAdminFaqs(items: AdminCustomFaq[]): void {
+export async function saveAdminFaqs(items: AdminCustomFaq[]): Promise<void> {
+  await setDoc(doc(db, "site_config", "faqs"), { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_FAQS, JSON.stringify(items));
     triggerSync();
   } catch (err) {
-    console.warn("Failed to save faqs locally", err);
-  }
-
-  // Attempt Firestore sync
-  try {
-    setDoc(doc(db, "site_config", "faqs"), { items }, { merge: true }).catch((err) => {
-      console.warn("Firestore faqs sync notice:", err.message);
-    });
-  } catch (err) {
-    console.warn("Firestore save skipped:", err);
+    console.warn("Firestore saved, but local FAQ cache was unavailable:", err);
   }
 }
 
-export function addCustomFaq(question: string, answer: string): AdminCustomFaq {
+export async function addCustomFaq(question: string, answer: string): Promise<AdminCustomFaq> {
   const current = getAdminFaqs();
   const newItem: AdminCustomFaq = {
     id: "faq-" + Date.now(),
@@ -227,13 +211,13 @@ export function addCustomFaq(question: string, answer: string): AdminCustomFaq {
     answer: answer.trim(),
     createdAt: new Date().toLocaleDateString()
   };
-  saveAdminFaqs([...current, newItem]);
+  await saveAdminFaqs([...current, newItem]);
   return newItem;
 }
 
-export function deleteCustomFaq(id: string): void {
+export async function deleteCustomFaq(id: string): Promise<void> {
   const current = getAdminFaqs();
-  saveAdminFaqs(current.filter(f => f.id !== id));
+  await saveAdminFaqs(current.filter(f => f.id !== id));
 }
 
 // 4. Site Config
@@ -251,21 +235,13 @@ export function getAdminConfig(): AdminSiteConfig {
   }
 }
 
-export function saveAdminConfig(config: AdminSiteConfig): void {
+export async function saveAdminConfig(config: AdminSiteConfig): Promise<void> {
+  await setDoc(doc(db, "site_config", "general"), config, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
     triggerSync();
   } catch (err) {
-    console.warn("Failed to save config locally", err);
-  }
-
-  // Attempt Firestore sync
-  try {
-    setDoc(doc(db, "site_config", "general"), config, { merge: true }).catch((err) => {
-      console.warn("Firestore config sync notice:", err.message);
-    });
-  } catch (err) {
-    console.warn("Firestore save skipped:", err);
+    console.warn("Firestore saved, but local config cache was unavailable:", err);
   }
 }
 
