@@ -75,6 +75,7 @@ export function AdminPanelModal({
   const [newNoticeText, setNewNoticeText] = useState("");
   const [newNoticeType, setNewNoticeType] = useState<AdminAnnouncement["type"]>("update");
   const [noticeAddedSuccess, setNoticeAddedSuccess] = useState(false);
+  const [noticeError, setNoticeError] = useState<string | null>(null);
 
   // Config form state
   const [maintMode, setMaintMode] = useState(config.maintenanceMode);
@@ -172,13 +173,19 @@ export function AdminPanelModal({
   };
 
   // Add Notice Handler
-  const handleAddNotice = (e: FormEvent) => {
+  const handleAddNotice = async (e: FormEvent) => {
     e.preventDefault();
     if (!newNoticeText.trim()) return;
-    addAnnouncement(newNoticeText, newNoticeType, true);
-    setNewNoticeText("");
-    setNoticeAddedSuccess(true);
-    setTimeout(() => setNoticeAddedSuccess(false), 2500);
+    setNoticeError(null);
+    try {
+      await addAnnouncement(newNoticeText, newNoticeType, true);
+      setNewNoticeText("");
+      setNoticeAddedSuccess(true);
+      setTimeout(() => setNoticeAddedSuccess(false), 2500);
+    } catch (err: any) {
+      console.error("[ANNOUNCEMENT FIRESTORE SAVE ERROR]", err);
+      setNoticeError("Announcement was not saved to Firebase. Check Firestore rules and admin login.");
+    }
   };
 
   // Save Settings Handler
@@ -446,6 +453,11 @@ export function AdminPanelModal({
                           {noticeAddedSuccess && (
                             <span className="text-xs text-emerald-700 font-bold flex items-center gap-1 animate-scale-in">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Notice Published!
+                            </span>
+                          )}
+                          {noticeError && (
+                            <span className="text-xs text-red-700 font-bold flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5" /> {noticeError}
                             </span>
                           )}
                         </div>
