@@ -36,7 +36,7 @@ import { RecentDownloadItem, AdminAnnouncement, AdminCustomPlatform } from "../t
 import { useAdminStore } from "../utils/adminStore";
 import { getApiUrl } from "../utils/api";
 import { auth } from "../firebase";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -52,9 +52,7 @@ export function AdminPanelModal({
   onClearHistory
 }: AdminPanelModalProps) {
   // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem("kiritos_admin_auth") === "true";
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -114,6 +112,25 @@ export function AdminPanelModal({
     }
   }, [isOpen, config]);
 
+  useEffect(() => {
+    const allowedAdminEmails = new Set([
+      "mahin@mail.com",
+      "mhamodulhasnat.mhmahin@gmail.com"
+    ]);
+
+    return onAuthStateChanged(auth, (user) => {
+      const email = user?.email?.trim().toLowerCase() || "";
+      const isAdmin = allowedAdminEmails.has(email);
+      setIsAuthenticated(isAdmin);
+
+      if (isAdmin) {
+        sessionStorage.setItem("kiritos_admin_auth", "true");
+      } else {
+        sessionStorage.removeItem("kiritos_admin_auth");
+      }
+    });
+  }, []);
+
   if (!isOpen) return null;
 
   const handleLogin = async (e: FormEvent) => {
@@ -121,20 +138,27 @@ export function AdminPanelModal({
     setAuthError(null);
 
     const cleanEmail = email.trim().toLowerCase();
-    const isLocalMatch = (cleanEmail === "mahin@mail.com" || cleanEmail === "mhamodulhasnat.mhmahin@gmail.com") && password === "Mahinx10";
+    const allowedAdminEmails = new Set([
+      "mahin@mail.com",
+      "mhamodulhasnat.mhmahin@gmail.com"
+    ]);
+
+    if (!allowedAdminEmails.has(cleanEmail)) {
+      setAuthError("This Firebase account is not authorized for the admin panel.");
+      return;
+    }
 
     try {
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const signedInEmail = credential.user.email?.trim().toLowerCase() || "";
+      if (!allowedAdminEmails.has(signedInEmail)) {
+        await signOut(auth);
+        throw new Error("Unauthorized admin account");
+      }
       setIsAuthenticated(true);
       sessionStorage.setItem("kiritos_admin_auth", "true");
       setAuthError(null);
     } catch {
-      if (isLocalMatch) {
-        setIsAuthenticated(true);
-        sessionStorage.setItem("kiritos_admin_auth", "true");
-        setAuthError(null);
-        return;
-      }
       setAuthError("Invalid credentials. Please verify your admin email and password.");
     }
   };
