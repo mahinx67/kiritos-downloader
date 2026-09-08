@@ -197,7 +197,8 @@ export function AdminPanelModal({
       setTimeout(() => setNoticeAddedSuccess(false), 2500);
     } catch (err: any) {
       console.error("[ANNOUNCEMENT FIRESTORE SAVE ERROR]", err);
-      setNoticeError("Announcement was not saved to Firebase. Check Firestore rules and admin login.");
+      const code = err?.code || "unknown";
+      setNoticeError(`Announcement was not saved to Firebase (${code}). Deploy Firestore rules and sign in with an authorized admin account.`);
     }
   };
 
