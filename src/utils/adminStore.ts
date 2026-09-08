@@ -8,6 +8,15 @@ import {
 import { db } from "../firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
+// Keep the document paths centralized: the public user panel and the admin
+// panel must always read/write the same cloud documents.
+const CLOUD_DOCS = {
+  announcements: doc(db, "announcements", "current"),
+  platforms: doc(db, "custom_platforms", "current"),
+  faqs: doc(db, "faqs", "current"),
+  config: doc(db, "site_config", "general")
+};
+
 const STORAGE_KEY_ANNOUNCEMENTS = "kiritos_admin_announcements";
 const STORAGE_KEY_PLATFORMS = "kiritos_admin_custom_platforms";
 const STORAGE_KEY_FAQS = "kiritos_admin_custom_faqs";
@@ -89,7 +98,7 @@ export function getAdminAnnouncements(): AdminAnnouncement[] {
 }
 
 export async function saveAdminAnnouncements(items: AdminAnnouncement[]): Promise<void> {
-  await setDoc(doc(db, "site_config", "announcements"), { items }, { merge: true });
+  await setDoc(CLOUD_DOCS.announcements, { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_ANNOUNCEMENTS, JSON.stringify(items));
     triggerSync();
@@ -138,7 +147,7 @@ export function getAdminPlatforms(): AdminCustomPlatform[] {
 }
 
 export async function saveAdminPlatforms(items: AdminCustomPlatform[]): Promise<void> {
-  await setDoc(doc(db, "site_config", "platforms"), { items }, { merge: true });
+  await setDoc(CLOUD_DOCS.platforms, { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_PLATFORMS, JSON.stringify(items));
     triggerSync();
@@ -194,7 +203,7 @@ export function getAdminFaqs(): AdminCustomFaq[] {
 }
 
 export async function saveAdminFaqs(items: AdminCustomFaq[]): Promise<void> {
-  await setDoc(doc(db, "site_config", "faqs"), { items }, { merge: true });
+  await setDoc(CLOUD_DOCS.faqs, { items }, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_FAQS, JSON.stringify(items));
     triggerSync();
@@ -236,7 +245,7 @@ export function getAdminConfig(): AdminSiteConfig {
 }
 
 export async function saveAdminConfig(config: AdminSiteConfig): Promise<void> {
-  await setDoc(doc(db, "site_config", "general"), config, { merge: true });
+  await setDoc(CLOUD_DOCS.config, config, { merge: true });
   try {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
     triggerSync();
@@ -274,7 +283,7 @@ export function useAdminStore() {
     let unsubFaq: (() => void) | null = null;
 
     try {
-      unsubConfig = onSnapshot(doc(db, "site_config", "general"), (snapshot) => {
+      unsubConfig = onSnapshot(CLOUD_DOCS.config, (snapshot) => {
         if (snapshot.exists()) {
           const cloudConfig = snapshot.data() as AdminSiteConfig;
           setConfig(prev => ({ ...prev, ...cloudConfig }));
@@ -284,7 +293,7 @@ export function useAdminStore() {
         console.log("Config listener fallback to local:", err.message);
       });
 
-      unsubAnn = onSnapshot(doc(db, "site_config", "announcements"), (snapshot) => {
+      unsubAnn = onSnapshot(CLOUD_DOCS.announcements, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data?.items)) {
@@ -296,7 +305,7 @@ export function useAdminStore() {
         console.log("Announcements listener fallback to local:", err.message);
       });
 
-      unsubPlat = onSnapshot(doc(db, "site_config", "platforms"), (snapshot) => {
+      unsubPlat = onSnapshot(CLOUD_DOCS.platforms, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data?.items)) {
@@ -308,7 +317,7 @@ export function useAdminStore() {
         console.log("Platforms listener fallback to local:", err.message);
       });
 
-      unsubFaq = onSnapshot(doc(db, "site_config", "faqs"), (snapshot) => {
+      unsubFaq = onSnapshot(CLOUD_DOCS.faqs, (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data?.items)) {
