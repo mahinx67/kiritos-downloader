@@ -17,6 +17,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // The app stores each admin-managed list as one document. These paths
+    // must stay aligned with src/utils/adminStore.ts.
+    match /announcements/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /custom_platforms/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /faqs/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     
     // Announcements & ticker notifications
     // Public can read, only admin can write
